@@ -34,6 +34,10 @@ class WebsocketClient(ABC):
         pass
 
     def launch(self):
+
+        # TODO remove this line once we stop supporting Python 3.5
+        asyncio.set_event_loop(self._event_loop)
+
         self._event_loop.run_until_complete(self._handler())
 
     def get_frame_id(self):
