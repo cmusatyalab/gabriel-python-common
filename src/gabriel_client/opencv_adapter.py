@@ -2,27 +2,24 @@ import cv2
 import numpy as np
 from gabriel_protocol import gabriel_pb2
 from gabriel_client.server_comm import WebsocketClient
-from abc import abstractmethod
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class OpencvClient(WebsocketClient):
-    @abstractmethod
-    def preprocess(self, frame):
-        pass
+class OpencvAdapter:
+    def __init__(self, preprocess, produce_engine_fields, consume_frame,
+                 video_capture, engine_name):
+        '''
+        preprocess should take a one frame parameter
+        produce_engine_fields should take no parameters
+        consume_frame should take one frame parameter and one engine_fields
+        parameter
+        '''
 
-    @abstractmethod
-    def produce_engine_fields(self):
-        pass
-
-    @abstractmethod
-    def consume_frame(self, frame, engine_fields):
-        pass
-
-    def __init__(self, server_ip, port, video_capture, engine_name):
-        super().__init__(server_ip, port)
+        self.preprocess = preprocess
+        self.produce_engine_fields = produce_engine_fields
+        self.consume_frame = consume_frame
         self.video_capture = video_capture
         self.engine_name = engine_name
 
@@ -58,7 +55,8 @@ class OpencvClient(WebsocketClient):
                     logger.error('Got result from engine %s',
                                  result.engine_name)
             else:
-                logger.error('Got result of type %s', result.payload_type.name)
+                logger.error('Got result of type %s',
+                             result.payload_type.name)
         else:
             logger.error('Got %d results in output',
                          len(result_wrapper.results))

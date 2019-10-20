@@ -2,8 +2,6 @@ import asyncio
 import logging
 import websockets
 from gabriel_protocol import gabriel_pb2
-from abc import ABC
-from abc import abstractmethod
 
 
 URI_FORMAT = 'ws://{host}:{port}'
@@ -16,22 +14,21 @@ websockets_logger = logging.getLogger('websockets')
 websockets_logger.setLevel(logging.INFO)
 
 
-class WebsocketClient(ABC):
-    def __init__(self, host, port):
+class WebsocketClient:
+    def __init__(self, host, port, producer, consumer):
+        '''
+        producer should take no arguments.
+        consumer should take one gabriel_pb2.ResultWrapper argument.
+        '''
+
         self._num_tokens = 0
         self._frame_id = 0
         self._running = True
         self._token_cond = asyncio.Condition()
         self._uri = URI_FORMAT.format(host=host, port=port)
         self._event_loop = asyncio.get_event_loop()
-
-    @abstractmethod
-    def consumer(self, result_wrapper):
-        pass
-
-    @abstractmethod
-    def producer(self):
-        pass
+        self.producer = producer
+        self.consumer = consumer
 
     def launch(self):
 
