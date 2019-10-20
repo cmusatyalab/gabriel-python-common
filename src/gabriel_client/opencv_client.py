@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from gabriel_protocol import gabriel_pb2
 from gabriel_client.server_comm import WebsocketClient
+from abc import abstractmethod
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,6 @@ class OpencvClient(WebsocketClient):
     def __init__(self, server_ip, port, video_capture, engine_name):
         super().__init__(server_ip, port)
         self.video_capture = video_capture
-        self.style_string = style_string
         self.engine_name = engine_name
 
     def producer(self):
