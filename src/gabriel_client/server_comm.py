@@ -100,7 +100,9 @@ class WebsocketClient(ABC):
                 await self._get_token()
 
                 from_client = self.producer()
-                await self._send_helper(from_client)
+                if from_client is not None:
+                    logger.info('Received None from producer')
+                    await self._send_helper(from_client)
         except websockets.exceptions.ConnectionClosed:
             return  # stop the handler
 
