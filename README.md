@@ -3,7 +3,7 @@
 Stream data back and forth between Gabriel Server
 
 ## Installation
-Requires Python >= 3.6
+Requires Python >= 3.5
 
 Run `pip install gabriel-client`
 
