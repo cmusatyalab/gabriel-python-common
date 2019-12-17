@@ -1,6 +1,6 @@
-# Gabriel Client
+# Gabriel Python Module
 
-Stream data back and forth between Gabriel Server
+Python module for communicating with a [Gabriel Server](https://github.com/cmusatyalab/gabriel-server-common).
 
 ## Installation
 Requires Python >= 3.5
