@@ -71,6 +71,7 @@ class WebsocketClient:
                         self._num_tokens[filter_passed] += 1
                         self._token_update_events[filter_passed].set()
                 elif to_client.HasField('welcome_message'):
+                    assert not to_client.return_token
                     old_token_update_events = self._token_update_events
 
                     filter_names = to_client.welcome_message.filters_consumed

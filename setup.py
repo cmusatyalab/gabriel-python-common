@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="gabriel-client",
-    version="0.0.4",
+    version="0.0.7",
     author="Roger Iyengar",
     author_email="ri@rogeriyengar.com",
     description="Client for Wearable Cognitive Assistance Applications",
@@ -24,7 +24,7 @@ setuptools.setup(
     ],
     python_requires=">=3.5",
     install_requires=[
-        "gabriel-protocol==0.0.2",
+        "gabriel-protocol==0.0.7",
         "websockets==8.0; python_version>=\"3.6\"",
         "websockets==7.0; python_version<\"3.6\"",
         "opencv-python>=3, <5"
