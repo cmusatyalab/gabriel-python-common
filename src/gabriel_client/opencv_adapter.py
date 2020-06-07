@@ -8,8 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 class OpencvAdapter:
-    def __init__(self, preprocess, produce_engine_fields, consume_frame,
-                 video_capture, engine_name):
+    def __init__(self, preprocess, produce_extras, consume_frame,
+                 video_capture, filter_passed):
         '''
         preprocess should take a one frame parameter
         produce_engine_fields should take no parameters
@@ -17,46 +17,48 @@ class OpencvAdapter:
         parameter
         '''
 
-        self.preprocess = preprocess
-        self.produce_engine_fields = produce_engine_fields
-        self.consume_frame = consume_frame
-        self.video_capture = video_capture
-        self.engine_name = engine_name
+        self._preprocess = preprocess
+        self._produce_extras = produce_extras
+        self._consume_frame = consume_frame
+        self._video_capture = video_capture
+        self._filter_passed = filter_passed
 
     def producer(self):
-        _, frame = self.video_capture.read()
+        _, frame = self._video_capture.read()
         if frame is None:
             return None
 
-        frame = self.preprocess(frame)
+        frame = self._preprocess(frame)
         _, jpeg_frame=cv2.imencode('.jpg', frame)
 
         from_client = gabriel_pb2.FromClient()
         from_client.payload_type = gabriel_pb2.PayloadType.IMAGE
-        from_client.engine_name = self.engine_name
-        from_client.payload = jpeg_frame.tostring()
+        from_client.filter_passed = self._filter_passed
+        from_client.payloads_for_frame.append(jpeg_frame.tostring())
 
-        engine_fields = self.produce_engine_fields()
-        if engine_fields is not None:
-            from_client.engine_fields.Pack(engine_fields)
+        extras = self._produce_extras()
+        if extras is not None:
+            from_client.extras.Pack(extras)
 
         return from_client
 
     def consumer(self, result_wrapper):
-        if len(result_wrapper.results) == 1:
-            result = result_wrapper.results[0]
-            if result.payload_type == gabriel_pb2.PayloadType.IMAGE:
-                if result.engine_name == self.engine_name:
-                    np_data = np.fromstring(result.payload, dtype=np.uint8)
-                    frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
+        if result_wrapper.filter_passed != self._filter_passed:
+            logger.error('Got result that passed filter %s',
+                         result_wrapper.filter_passed)
+            return
 
-                    self.consume_frame(frame, result_wrapper.engine_fields)
-                else:
-                    logger.error('Got result from engine %s',
-                                 result.engine_name)
-            else:
-                logger.error('Got result of type %s',
-                             result.payload_type.name)
-        else:
+        if len(result_wrapper.results) != 1:
             logger.error('Got %d results in output',
                          len(result_wrapper.results))
+            return
+
+        result = result_wrapper.results[0]
+        if result.payload_type != gabriel_pb2.PayloadType.IMAGE:
+            logger.error('Got result of type %s', result.payload_type.name)
+            return
+
+        np_data = np.fromstring(result.payload, dtype=np.uint8)
+        frame = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
+
+        self._consume_frame(frame, result_wrapper.extras)
