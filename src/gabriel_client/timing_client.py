@@ -7,10 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 class TimingClient(WebsocketClient):
-    def __init__(self, host, port, producer, consumer, output_freq=10):
-        super().__init__(host, port, self.producer, self.consumer)
-        self.adater_producer = producer
-        self.adapter_consumer = consumer
+    def __init__(self, host, port, producers, consumer, output_freq=10):
+        super().__init__(host, port, None, self.consumer)
+        self._adapter_consumer = consumer
 
         self._output_freq = output_freq
         self._send_timestamps = {}
@@ -21,16 +20,12 @@ class TimingClient(WebsocketClient):
         self._start_time = time.time()
         self._interval_start_time = time.time()
 
-    def producer(self):
-        timestamp = time.time()
-        from_client = self.adater_producer()
-        if from_client is not None:
-            self._send_timestamps[self.get_frame_id()] = time.time()
-
-        return from_client
+        self.producers = [
+            self._producer_producer(producer) for producer in producers
+        ]
 
     def consumer(self, result_wrapper):
-        self.adapter_consumer(result_wrapper)
+        self._adapter_consumer(result_wrapper)
 
         timestamp = time.time()
         self._recv_timestamps[result_wrapper.frame_id] = timestamp
@@ -46,6 +41,16 @@ class TimingClient(WebsocketClient):
 
             self._interval_count = 0
             self._interval_start_time = time.time()
+
+    def _producer_producer(self, producer):
+        async def producer_wrapper():
+            from_client = await producer()
+            if from_client is not None:
+                self._send_timestamps[self.get_frame_id()] = time.time()
+
+            return from_client
+
+        return producer_wrapper
 
     def compute_avg_rtt(self):
         count = 0
