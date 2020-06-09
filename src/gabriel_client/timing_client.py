@@ -1,4 +1,5 @@
 from gabriel_client.server_comm import WebsocketClient
+from gabriel_client.server_comm import ProducerWrapper
 import time
 import logging
 
@@ -7,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class TimingClient(WebsocketClient):
-    def __init__(self, host, port, producers, consumer, output_freq=10):
+    def __init__(self, host, port, producer_wrappers, consumer, output_freq=10):
         super().__init__(host, port, None, self.consumer)
         self._adapter_consumer = consumer
 
@@ -20,8 +21,9 @@ class TimingClient(WebsocketClient):
         self._start_time = time.time()
         self._interval_start_time = time.time()
 
-        self.producers = [
-            self._producer_producer(producer) for producer in producers
+        self.producer_wrappers = [
+            self._producer_wrapper(producer_wrapper)
+            for producer_wrapper in producer_wrappers
         ]
 
     def consumer(self, result_wrapper):
@@ -42,15 +44,17 @@ class TimingClient(WebsocketClient):
             self._interval_count = 0
             self._interval_start_time = time.time()
 
-    def _producer_producer(self, producer):
-        async def producer_wrapper():
-            from_client = await producer()
+    def _producer_wrapper(self, producer_wrapper):
+        async def producer_with_timing():
+            from_client = await producer_wrapper.producer()
             if from_client is not None:
                 self._send_timestamps[self.get_frame_id()] = time.time()
 
             return from_client
 
-        return producer_wrapper
+        return ProducerWrapper(
+            producer=producer_with_timing,
+            filter_name=producer_wrapper.filter_name)
 
     def compute_avg_rtt(self):
         count = 0

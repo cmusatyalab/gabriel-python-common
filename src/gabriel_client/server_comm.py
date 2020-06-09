@@ -2,6 +2,7 @@ import asyncio
 import logging
 import websockets
 from gabriel_protocol import gabriel_pb2
+from collections import namedtuple
 
 
 URI_FORMAT = 'ws://{host}:{port}'
@@ -14,8 +15,11 @@ websockets_logger = logging.getLogger(websockets.__name__)
 websockets_logger.setLevel(logging.INFO)
 
 
+ProducerWrapper = namedtuple('ProducerWrapper', ['producer', 'filter_name'])
+
+
 class WebsocketClient:
-    def __init__(self, host, port, producers, consumer):
+    def __init__(self, host, port, producer_wrappers, consumer):
         '''
         producer should take no arguments.
         consumer should take one gabriel_pb2.ResultWrapper argument.
@@ -28,7 +32,7 @@ class WebsocketClient:
         self._running = True
         self._uri = URI_FORMAT.format(host=host, port=port)
         self._event_loop = asyncio.get_event_loop()
-        self.producers = producers
+        self.producer_wrappers = producer_wrappers
         self.consumer = consumer
 
     def launch(self):
@@ -36,13 +40,18 @@ class WebsocketClient:
         # TODO remove this line once we stop supporting Python 3.5
         asyncio.set_event_loop(self._event_loop)
 
-        self._websocket = self._event_loop.run_until_complete(
-            await websockets.connect(self._uri))
+        try:
+            self._websocket = self._event_loop.run_until_complete(
+                websockets.connect(self._uri))
+        except ConnectionRefusedError:
+            logger.error('Could not connect to server')
+            return
 
         consumer_task = asyncio.ensure_future(self._consumer_handler())
         tasks = [
-            asyncio.ensure_future(self._producer_handler(producer))
-            for producer in self.producers
+            asyncio.ensure_future(
+                self._producer_handler(wrapper.producer, wrapper.filter_name))
+            for wrapper in self.producer_wrappers
         ]
         tasks.append(consumer_task)
 
@@ -128,18 +137,20 @@ class WebsocketClient:
         self._num_tokens[filter_name] += 1
         self._token_update_events[filter_name].set()
 
-    async def _producer_handler(self, producer):
+    async def _producer_handler(self, producer, filter_name):
         '''
         Loop waiting until there is a token available. Then call supplier to get
         the partially built FromClient to send.
         '''
         while self._running:
-            await self._get_token(from_client.filter_passed)
+            await self._get_token(filter_name)
+
             from_client = await producer()
             if from_client is None:
-                self._return_token(from_client.filter_passed)
+                self._return_token(filter_name)
                 logger.info('Received None from producer')
             else:
+                assert from_client.filter_passed == filter_name
                 try:
                     await self._send_helper(from_client)
                 except websockets.exceptions.ConnectionClosed:

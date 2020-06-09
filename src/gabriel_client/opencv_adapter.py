@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from gabriel_protocol import gabriel_pb2
-from gabriel_client.server_comm import WebsocketClient
+from gabriel_client.server_comm import ProducerWrapper
 import logging
 
 logger = logging.getLogger(__name__)
@@ -23,24 +23,29 @@ class OpencvAdapter:
         self._video_capture = video_capture
         self._filter_passed = filter_passed
 
-    def producer(self):
-        _, frame = self._video_capture.read()
-        if frame is None:
-            return None
+    def get_producer_wrappers(self):
+        async def producer():
+            _, frame = self._video_capture.read()
+            if frame is None:
+                return None
 
-        frame = self._preprocess(frame)
-        _, jpeg_frame=cv2.imencode('.jpg', frame)
+            frame = self._preprocess(frame)
+            _, jpeg_frame=cv2.imencode('.jpg', frame)
 
-        from_client = gabriel_pb2.FromClient()
-        from_client.payload_type = gabriel_pb2.PayloadType.IMAGE
-        from_client.filter_passed = self._filter_passed
-        from_client.payloads_for_frame.append(jpeg_frame.tostring())
+            from_client = gabriel_pb2.FromClient()
+            from_client.payload_type = gabriel_pb2.PayloadType.IMAGE
+            from_client.filter_passed = self._filter_passed
+            from_client.payloads_for_frame.append(jpeg_frame.tostring())
 
-        extras = self._produce_extras()
-        if extras is not None:
-            from_client.extras.Pack(extras)
+            extras = self._produce_extras()
+            if extras is not None:
+                from_client.extras.Pack(extras)
 
-        return from_client
+            return from_client
+
+        return [
+            ProducerWrapper(producer=producer, filter_name=self._filter_passed)
+        ]
 
     def consumer(self, result_wrapper):
         if result_wrapper.filter_passed != self._filter_passed:

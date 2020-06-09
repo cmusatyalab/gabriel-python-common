@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="gabriel-client",
-    version="0.0.7",
+    version="0.0.8",
     author="Roger Iyengar",
     author_email="ri@rogeriyengar.com",
     description="Client for Wearable Cognitive Assistance Applications",
