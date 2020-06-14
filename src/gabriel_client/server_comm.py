@@ -86,8 +86,12 @@ class WebsocketClient:
                 result_wrapper = to_client.result_wrapper
                 if (result_wrapper.status == gabriel_pb2.ResultWrapper.SUCCESS):
                     self.consumer(result_wrapper)
+                elif (result_wrapper.status ==
+                      gabriel_pb2.ResultWrapper.NO_ENGINE_FOR_FILTER_PASSED):
+                    raise Exception('No engine for filter passed')
                 else:
-                    logger.error('Output status was: %d', result_wrapper.status)
+                    status = result_wrapper.Status.Name(result_wrapper.status)
+                    logger.error('Output status was: %s', status)
 
                 if to_client.return_token:
                     filter_passed = result_wrapper.filter_passed
