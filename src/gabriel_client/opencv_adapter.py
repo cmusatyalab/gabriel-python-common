@@ -11,7 +11,7 @@ class OpencvAdapter:
     def __init__(self, preprocess, produce_extras, consume_frame,
                  video_capture, filter_passed):
         '''
-        preprocess should take a one frame parameter
+        preprocess should take one frame parameter
         produce_engine_fields should take no parameters
         consume_frame should take one frame parameter and one engine_fields
         parameter
